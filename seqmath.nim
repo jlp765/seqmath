@@ -248,6 +248,25 @@ proc flatten*[T: seq](a: seq[T]): auto =
   ##   echo a_flat
   ##   -> @[1, 2, 3, 4, 5, 6]
   a.concat.flatten
+
+proc shape*[T: (SomeNumber | bool | char | string)](x: T): seq[int] = @[]
+  ## Exists so that recursive proc stops with this proc.
+
+proc shape*[T](x: seq[T]): seq[int] =
+  ## recursively determine the dimension of a nested sequence.
+  ## we simply append the dimension of the current seq to the
+  ## result and call this function again recursively until
+  ## we hit the type at core, which is catched by the above proc
+  ## 
+  ## Example:
+  ##    let x = @[ @[ @[1, 2, 3], @[1, 2, 3]],
+  ##               @[ @[1, 2, 3], @[1, 2, 3]] ]
+  ##    echo x.shape
+  ##    -> @[2, 2, 3]
+  result = @[]
+  if len(x) > 0:
+    result.add(len(x))
+    result.add(shape(x[0]))
 # ----------- cumulative seq math -----------------------
 
 proc cumProd*[T](x: openArray[T]): seq[T] =
@@ -843,37 +862,6 @@ proc transpose*[T](x: openArray[seq[T]]): seq[seq[T]] =
   for i in 0..<blen:
     for j in 0..<alen:
       result[i][j] = x[j][i]
-
-proc shape[T:SomeNumber](x: T): seq[int] = @[]
-  # Exists so that recursive template stops with this proc.
-
-proc shape*[T](x: openarray[T]): seq[int] =
-  ## return the shape of a (nested) [seq[....]]
-  ## as a sequence of numbers
-  ##
-  ## ``shape([@[1,2,3], @[4,5,6]]`` produces ``@[2,3]``
-  var shp = type(T).name
-  let sT = shp.replace("]","").split("seq[")
-  result = newSeq[int](sT.len)
-  result[0] = x.len
-  var k = 1
-  for sNr in items(shape(x[0])):
-    result[k] = sNr
-    inc(k)
-
-proc shape*[T](x: seq[T]): seq[int] =
-  ## return the shape of a (nested) seq[....]
-  ## as a sequence of numbers
-  ##
-  ## ``shape(@[[1,2,3], @[4,5,6]]`` produces ``@[2,3]``
-  var shp = type(T).name
-  let sT = shp.replace("]","").split("seq[")
-  result = newSeq[int](sT.len)
-  result[0] = x.len
-  var k = 1
-  for sNr in items(shape(x[0])):
-    result[k] = sNr
-    inc(k)
 
 proc ptp[T: SomeNumber](x: T): T = (result = T(0))
   # this is required for liftScalarProc(ptp)
