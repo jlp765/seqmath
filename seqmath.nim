@@ -257,14 +257,6 @@ proc powSum*[T](x: openArray[T], p: T): float =
   for i in 0..<x.len: ps += pow(x[i].toFloat, p.toFloat)
   result = ps
 
-proc max*[T](x: openArray[T]): T =
-  ## Maximum element in ``x``
-  if x.len == 0: result = T(0)
-  else:
-    result = x[0]
-    for i in 0..<x.len:
-      if x[i] > result: result = x[i]
-
 proc max*[T](x: openArray[T], m: T): seq[T] =
   ## Maximum of each element of ``x`` compared to the value ``m``
   ## as a sequence
@@ -290,14 +282,6 @@ proc max*[T](x, y: openArray[T]): seq[T] =
       if i < nlen: result[i] = max(x[i], y[i])
       elif i < x.len: result[i] = x[i]
       else: result[i] = y[i]
-
-proc min*[T](x: openArray[T]): T =
-  ## Minimum element in ``x``
-  if x.len == 0: result = T(0)
-  else:
-    result = x[0]
-    for i in 0..<x.len:
-      if x[i] < result: result = x[i]
 
 proc min*[T](x: openArray[T], m: T): seq[T] =
   ## Minimum of each element of ``x`` compared to the value ``m``
