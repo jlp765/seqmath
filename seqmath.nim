@@ -203,6 +203,20 @@ proc linspace*(start, stop: float, num: int, endpoint = true): seq[float] =
       # for every element calculate new value for next iteration
       step += diff
 
+template liftCompareProc(op) =
+  ## lift an comparator operator like `<` to work element wise
+  ## on two openArrays `x`, `y` and return a `seq[bool]`
+  proc `op`*[T](x, y: openArray[T]): seq[bool] =
+    result = newSeq[bool](x.len)
+    for i, xy in zip(x, y):
+      result[i] = op(xy[0], xy[1])
+
+# lift comparator operators
+liftCompareProc(`<`)
+liftCompareProc(`>`)
+liftCompareProc(`<=`)
+liftCompareProc(`>=`)
+
 # ----------- cumulative seq math -----------------------
 
 proc cumProd*[T](x: openArray[T]): seq[T] =
