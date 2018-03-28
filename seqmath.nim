@@ -172,6 +172,37 @@ liftScalarProc(radToDeg)
 liftScalarProc(gcd)
 liftScalarProc(lcm)
 
+proc arange*(start, stop, step: int): seq[int] =
+  ## returns seq containing all elements from incl. `start` to excl. `stop`
+  ## given a stepping of `step`
+  ## Similar to Numpy's arange
+  result = @[]
+  for i in start..<stop:
+    if (i - start) mod step == 0:
+      result.add(i)
+
+proc linspace*(start, stop: float, num: int, endpoint = true): seq[float] =
+  ## linspace similar to numpy's linspace
+  ## returns a seq containing a linear spacing starting from `start` to `stop`
+  ## eitther including (endpoint == true) or excluding (endpoint == false) `stop`
+  ## with a number of `num` elements
+  result = @[]
+  var 
+    step = start
+    diff: float
+  if endpoint == true:
+    diff = (stop - start) / float(num - 1)
+  else:
+    diff = (stop - start) / float(num)
+  if diff < 0:
+    # in case start is bigger than stop, return an empty sequence
+    return @[]
+  else:
+    for i in 0..<num:
+      result.add(step)
+      # for every element calculate new value for next iteration
+      step += diff
+
 # ----------- cumulative seq math -----------------------
 
 proc cumProd*[T](x: openArray[T]): seq[T] =
