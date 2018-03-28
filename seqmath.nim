@@ -217,6 +217,20 @@ liftCompareProc(`>`)
 liftCompareProc(`<=`)
 liftCompareProc(`>=`)
 
+# ----------- convenience procs on seqs and open arrays -------------------
+
+proc `[]`*[T](a: openArray[T], inds: seq[int]): seq[T] {.inline.} =
+  ## given two openArrays, return a sequence of all elements whose indices
+  ## are given in 'inds'
+  ## inputs:
+  ##    a: seq[T] = the sequence from which we take values
+  ##    inds: openArray[int] = the array which contains the indices for the
+  ##         arrays, which we take from 'array'
+  ## outputs:
+  ##    seq[T] = a sequence of all elements s.t. array[ind] in numpy indexing
+  result = newSeq[T](inds.len)
+  for i, ind in inds:
+    result[i] = a[ind]
 # ----------- cumulative seq math -----------------------
 
 proc cumProd*[T](x: openArray[T]): seq[T] =
