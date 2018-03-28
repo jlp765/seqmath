@@ -231,6 +231,23 @@ proc `[]`*[T](a: openArray[T], inds: seq[int]): seq[T] {.inline.} =
   result = newSeq[T](inds.len)
   for i, ind in inds:
     result[i] = a[ind]
+proc flatten*[T: SomeNumber](a: seq[T]): seq[T] = a
+  ## Exists so that recursive proc stops with this proc.
+proc flatten*[T: seq](a: seq[T]): auto =
+  ## Note: only works due to usage of `auto` as return value, as
+  ## noted by Araq here:
+  ## https://github.com/nim-lang/Nim/pull/6807
+  ## maybe not nice, but still useful :/
+  ## proc to flatten a nested sequence `a` to a 1D sequence,
+  ## by recursively applying concat to the remaining sequence
+  ## makes use of a stopping proc `flatten(T: SomeNumber)()`
+  ##
+  ## Example:
+  ##   let a = @[ @[1, 2, 3], @[4, 5, 6]]
+  ##   let a_flat = a.flatten
+  ##   echo a_flat
+  ##   -> @[1, 2, 3, 4, 5, 6]
+  a.concat.flatten
 # ----------- cumulative seq math -----------------------
 
 proc cumProd*[T](x: openArray[T]): seq[T] =
