@@ -1256,7 +1256,6 @@ when isMainModule:
   doAssert( histogram(arange(0, 100, 1), bins = 11).len == 11 )
   doAssert( histogram(arange(0, 100, 1), bins = 10) == @[10, 10, 10, 10, 10, 10, 10, 10, 10, 10] )
   let xar = @[0, 1, 1, 1, 3, 5, 1, 3, 6, 8]
-  echo histogram(xar, bins = 6, range = (0.0, 5.0))
   doAssert( histogram(xar, bins = 6, range = (0.0, 5.0)) == @[1, 4, 0, 2, 0, 1] )
   
   #doAssert( linspace(2.0, 3.0, num = 5) == @[2.0, 2.25, 2.5, 2.75, 3.0] )
