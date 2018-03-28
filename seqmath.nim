@@ -175,6 +175,27 @@ liftScalarProc(radToDeg)
 liftScalarProc(gcd)
 liftScalarProc(lcm)
 
+# ----------- convenience procs -------------------------
+
+template canImport(x): bool =
+  compiles:
+    import x
+
+when canImport(arraymancer):
+  import arraymancer
+  proc argmin*[T](a: AnyTensor[T], axis: int): int =
+    let `min` = min(a)
+    for i, x in a:
+      if x == `min`:
+        return i[axis]
+
+  proc argmin*[T](a: AnyTensor[T]): int =
+    # argmin for 1D tensors
+    let `min` = min(a)
+    for i, x in a:
+      if x == `min`:
+        return i[0]
+
 proc arange*(start, stop, step: int): seq[int] =
   ## returns seq containing all elements from incl. `start` to excl. `stop`
   ## given a stepping of `step`
