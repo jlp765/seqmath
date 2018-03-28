@@ -29,6 +29,9 @@ type
   PtileInterp = enum
     linear, lower, higher, nearest, midpoint
 
+  # error to be raised when a feature is used, which is not (fully) implemented yet
+  NotImplementedError = object of Exception
+
 template toFloat(f: float): float = f
 
 # ----------- Point -----------------------
@@ -906,6 +909,78 @@ proc digitize*[T](x: openArray[T], bins: openArray[T], right = false): seq[int] 
           result[i] = k
           break
 
+proc histogram*[T](x: openArray[T],
+                   bins: (int | string),
+                   range: tuple[mn, mx: float] = (0.0, 0.0),
+                   normed = false,
+                   weights: seq[T] = nil,
+                   density = false): seq[int] =
+  ## Compute the histogram of a set of data. Adapted from Numpy's code.
+  result = @[]
+  if x.len == 0:
+    raise newException(ValueError, "Cannot compute histogram of empty array!")
+
+  if weights.len > 0 and weights.len != x.len:
+    raise newException(ValueError, "The number of weights needs to be equal to the number of elements in the input seq!")
+
+  # parse the range parameter
+  var (mn, mx) = range
+  if mn == 0.0 and mx == 0.0:
+    mn = x.min.float
+    mx = x.max.float
+  if mn > mx:
+    raise newException(ValueError, "Max range must be larger than min range!")
+  elif mn == mx:
+    mn -= 0.5
+    mx += 0.5
+  # from here on mn, mx unchanged
+  when type(bins) is string:
+    # to be implemented to guess the number of bins from different algorithms. Looking at the Numpy code
+    # for the implementations it's only a few LoC
+    raise newException(NotImplementedError, "Automatic choice of number of bins based on different " &
+                       "algorithms not implemented yet.")
+  when type(bins) is int:
+    # init empty float histogram
+    var n = newSeq[float](bins)
+    # normalization
+    let
+      norm = bins.float / (mx - mn)
+      bin_edges = linspace(mn, mx, bins + 1, endpoint = true)
+    # make sure input array is float and filter to all elements inside valid range
+    # x_keep is used to calculate the indices whereas x_data is used for hist calc
+    when T isnot float:
+      var x_data = mapIt(@x, it.float)
+    else:
+      var x_data = x
+    var x_keep = filterIt(x_data, it >= mn and it <= mx)
+    x_data = x_keep
+    # remove potential offset
+    applyIt(x_keep, it - mn)
+    #x_keep -= mn
+    applyIt(x_Keep, it * norm)
+    # x_keep *= norm
+
+    # compute bin indices
+    var indices = mapIt(x_keep, it.int)
+    # for indices which are equal to the max value, subtract 1
+    indices.apply do (it: int) -> int:
+      if it == bins:
+        it - 1
+      else:
+        it
+    # since index computation not guaranteed to give exactly consistent results within
+    # ~1 ULP of the bin edges, decrement some indices
+    let decrement = x_data < bin_edges[indices]
+    for i in 0 .. indices.high:
+      if decrement[i] == true:
+        indices[i] -= 1
+      if x_data[i] >= bin_edges[indices[i] + 1] and indices[i] != (bins - 1):
+        indices[i] += 1
+
+    # currently weights and min length not implemented for bincount
+    result = bincount(indices)
+     
+  
 proc unwrap*[T](p: openArray[T], discont = PI): seq[float] =
   ## unwrap radian values of ``p`` by changing deltas between
   ## consecutive elements to its ``2*pi`` complement
@@ -1154,6 +1229,14 @@ when isMainModule:
   # doAssert( max(@[-1,-2,3,4], @[4,3,2,1]) == @[4,3,3,4] )
   # doAssert( min(@[-1,-2,3,4], @[4,3,2,1]) == @[-1,-2,2,1] )
 
+  # tests for convenience procs
+  doAssert( (@[1, 2, 3, 4] < @[0, 3, 5, 6]) == @[false, true, true, true])
+  doAssert( histogram(arange(0, 100, 1), bins = 10).len == 10 )
+  doAssert( histogram(arange(0, 100, 1), bins = 11).len == 11 )
+  doAssert( histogram(arange(0, 100, 1), bins = 10) == @[10, 10, 10, 10, 10, 10, 10, 10, 10, 10] )
+  let xar = @[0, 1, 1, 1, 3, 5, 1, 3, 6, 8]
+  echo histogram(xar, bins = 6, range = (0.0, 5.0))
+  doAssert( histogram(xar, bins = 6, range = (0.0, 5.0)) == @[1, 4, 0, 2, 0, 1] )
   
   #doAssert( linspace(2.0, 3.0, num = 5) == @[2.0, 2.25, 2.5, 2.75, 3.0] )
   #doAssert( linspace(2.0, 3.0, num = 5, endpoint = false) == @[2.0, 2.2, 2.4, 2.6, 2.8] )
