@@ -204,12 +204,16 @@ when canImport(arraymancer):
       if x == `min`:
         return i[0]
 
-proc arange*(start, stop, step = 1): seq[int] =
+proc arange*(start, stop, step = 1, endpoint = false): seq[int] =
   ## returns seq containing all elements from incl. `start` to excl. `stop`
   ## given a stepping of `step`
+  ## `endpoint` allows to include `stop` in the output array.
   ## Similar to Numpy's arange
   result = @[]
-  for i in start..<stop:
+  var mstop = stop
+  if endpoint == true:
+    mstop = stop + 1
+  for i in start..<mstop:
     if (i - start) mod step == 0:
       result.add(i)
 
