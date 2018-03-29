@@ -167,13 +167,21 @@ liftScalarProc(erfc)
 liftScalarProc(lgamma)
 liftScalarProc(tgamma)
 liftScalarProc(trunc)
-liftScalarProc(round)
 liftScalarProc(floor)
 liftScalarProc(ceil)
 liftScalarProc(degToRad)
 liftScalarProc(radToDeg)
 liftScalarProc(gcd)
 liftScalarProc(lcm)
+
+
+# round cannot be lifted using the template above, since it has an
+# optional parameter `round`
+proc round*[T](x: openArray[T], places = 0): seq[T] =
+  result = newSeq[T](x.len)
+  for i in 0..<x.len:
+    result[i] = round(x[i], places)
+
 
 # ----------- convenience procs -------------------------
 
