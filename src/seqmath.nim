@@ -1274,10 +1274,22 @@ when isMainModule:
 
   # tests for convenience procs
   doAssert( (@[1, 2, 3, 4] < @[0, 3, 5, 6]) == @[false, true, true, true])
+  doAssert( (@[1, 2, 3, 6] <= @[0, 1, 5, 6]) == @[false, false, true, true])  
+  doAssert( (@[1, 2, 3, 4] > @[0, 3, 5, 6]) == @[true, false, false, false])
+  doAssert( (@[1, 2, 3, 4] >= @[0, 2, 5, 6]) == @[true, true, false, false])
+  doAssert( arange(0, 5) == @[0, 1, 2, 3, 4] )
+  doAssert( arange(0, 7, 2) == @[0, 2, 4, 6] )
+  doAssert( arange(0, 6, 2) == @[0, 2, 4] )
+  doAssert( arange(0, 6, 2, endpoint = true) == @[0, 2, 4, 6] )
+  doAssert( flatten(@[ @[1, 2, 3], @[4, 5, 6] ]) == @[1, 2, 3, 4, 5, 6])
+  doAssert( flatten(@[ @[ @[1, 2, 3], @[4, 5, 6] ], @[ @[1, 2, 3], @[4, 5, 6] ] ]) == @[1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6])
   # currently not working, due to no support for openArray in shape
   doAssert( shape([@[1,2,3], @[4,5,6]]) == @[2,3] )
   doAssert( shape(@[@[1,2,3], @[4,5,6]]) == @[2,3] )
   doAssert( shape(@[@[@[@[1,2,3], @[4,5,6]]]]) == @[1,1,2,3] )
+  
+
+  
   doAssert( histogram(arange(0, 100, 1), bins = 10).len == 10 )
   doAssert( histogram(arange(0, 100, 1), bins = 11).len == 11 )
   doAssert( histogram(arange(0, 100, 1), bins = 10) == @[10, 10, 10, 10, 10, 10, 10, 10, 10, 10] )
