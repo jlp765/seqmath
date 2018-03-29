@@ -479,7 +479,11 @@ proc max*[T](x: openArray[T], m: T): seq[T] =
     for i in 0..<x.len:
       result[i] = max(m, x[i])
 
-proc max*[T](x, y: openArray[T]): seq[T] =
+proc max*[T](x, y: seq[T]): seq[T] =
+  ## Note: previous definition using an openArray as the type
+  ## does not work anymore, since it clashes with with
+  ## system.max[T](x, y: T) now
+  
   ## Maximum value of each element of ``x`` and
   ## ``y`` respectively, as a sequence.
   ##
@@ -493,7 +497,7 @@ proc max*[T](x, y: openArray[T]): seq[T] =
       if i < nlen: result[i] = max(x[i], y[i])
       elif i < x.len: result[i] = x[i]
       else: result[i] = y[i]
-
+      
 proc min*[T](x: openArray[T], m: T): seq[T] =
   ## Minimum of each element of ``x`` compared to the value ``m``
   ## as a sequence
@@ -505,7 +509,11 @@ proc min*[T](x: openArray[T], m: T): seq[T] =
     for i in 0..<x.len:
       result[i] = min(m, x[i])
 
-proc min*[T](x, y: openArray[T]): seq[T] =
+proc min*[T](x, y: seq[T]): seq[T] =
+  ## Note: previous definition using an openArray as the type
+  ## does not work anymore, since it clashes with with
+  ## system.min[T](x, y: T) now
+  
   ## Minimum value of each element of ``x`` and
   ## ``y`` respectively, as a sequence.
   ##
