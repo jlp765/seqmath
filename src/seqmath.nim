@@ -536,7 +536,7 @@ proc eAdd*[T](x, y: openArray[T]): seq[T] =
   ## returning a sequence
   ##
   ## ``eAdd(@[1,2], @[3,4])`` produces ``@[4,6]``
-  assert (x.len <= y.len, "eAdd() parameter lengths must match")
+  assert(x.len <= y.len, "eAdd() parameter lengths must match")
   result = newSeq[T](x.len)
   for i in 0..<x.len:
     result[i] = x[i] + y[i]
@@ -554,7 +554,7 @@ proc eSub*[T](x, y: openarray[T]): seq[T] =
   ## where x.len <= y.len
   ##
   ## ``eSub(@[1,2], @[3,4])`` produces ``@[-2,-2]``
-  assert (x.len <= y.len, "eSubtract() parameter lengths must match")
+  assert(x.len <= y.len, "eSubtract() parameter lengths must match")
   result = newSeq[T](x.len)
   for i in 0..<x.len:
     result[i] = x[i] - y[i]
@@ -572,7 +572,7 @@ proc eMul*[T](x, y: openArray[T]): seq[T] =
   ## where x.len <= y.len
   ##
   ## ``eMul(@[1,2], @[3,4])`` produces ``@[3,8]``
-  assert (x.len <= y.len, "eMultiply() parameter lengths must match")
+  assert(x.len <= y.len, "eMultiply() parameter lengths must match")
   result = newSeq[T](x.len)
   for i in 0..<x.len:
     result[i] = x[i] * y[i]
@@ -592,7 +592,7 @@ proc eDiv*[T](x, y: openArray[T]): seq[float] =
   ## and x.len <= y.len
   ##
   ## ``eDiv(@[1,2], @[2,0])`` produces ``@[0.5,0.0]``
-  assert (x.len <= y.len, "eDivide() parameter lengths must match")
+  assert(x.len <= y.len, "eDivide() parameter lengths must match")
   result = newSeq[float](x.len)
   for i in 0..<x.len:
     if y[i] == T(0): result[i] = 0.0
@@ -617,7 +617,7 @@ proc eMod*[T](x, y: openArray[T]): seq[float] =
   ## and x.len <= y.len
   ##
   ## ``eMod(@[1.0,2.0], @[2.0,1.5])`` produces ``@[1.0, 0.5]``
-  assert (x.len <= y.len, "eRemainder() parameter lengths must match")
+  assert(x.len <= y.len, "eRemainder() parameter lengths must match")
   result = newSeq[float](x.len)
   for i in 0..<x.len:
     if y[i] == 0: result[i] = 0.0
