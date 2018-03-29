@@ -13,6 +13,8 @@ import math, algorithm, sequtils, strutils, typetraits
 ##  The results produced will differ from the
 ##  results produced by a library like numpy.
 
+{.deadCodeElim: on.}
+
 type
   FinObj* = object ## optional object for interfacing with financial calculations
     pv*: float ## ``present value`` (negative for outgoing cash flow)
@@ -301,7 +303,7 @@ proc flatten*[T: seq](a: seq[T]): auto =
 proc shape*[T: (SomeNumber | bool | char | string)](x: T): seq[int] = @[]
   ## Exists so that recursive proc stops with this proc.
 
-proc shape*[T](x: seq[T]): seq[int] =
+proc shape*[T](x: openArray[T]): seq[int] =
   ## recursively determine the dimension of a nested sequence.
   ## we simply append the dimension of the current seq to the
   ## result and call this function again recursively until
@@ -1272,6 +1274,10 @@ when isMainModule:
 
   # tests for convenience procs
   doAssert( (@[1, 2, 3, 4] < @[0, 3, 5, 6]) == @[false, true, true, true])
+  # currently not working, due to no support for openArray in shape
+  doAssert( shape([@[1,2,3], @[4,5,6]]) == @[2,3] )
+  doAssert( shape(@[@[1,2,3], @[4,5,6]]) == @[2,3] )
+  doAssert( shape(@[@[@[@[1,2,3], @[4,5,6]]]]) == @[1,1,2,3] )
   doAssert( histogram(arange(0, 100, 1), bins = 10).len == 10 )
   doAssert( histogram(arange(0, 100, 1), bins = 11).len == 11 )
   doAssert( histogram(arange(0, 100, 1), bins = 10) == @[10, 10, 10, 10, 10, 10, 10, 10, 10, 10] )
@@ -1336,11 +1342,6 @@ when isMainModule:
   doAssert( @[@[1,3,4,5,6,7,8],@[1,1,1,1,1,5,6]].shape() == @[2,7])
   doAssert( transpose(@[@[1,3,4,5,6,7,8],@[1,1,1,1,1,5,6]]).shape() == @[7,2])
 
-  # currently not working, due to no support for openArray in shape
-  # doAssert( shape([@[1,2,3], @[4,5,6]]) == @[2,3] )
-  doAssert( shape(@[@[1,2,3], @[4,5,6]]) == @[2,3] )
-  doAssert( shape(@[@[@[@[1,2,3], @[4,5,6]]]]) == @[1,1,2,3] )
-  
   doAssert( round(fv(0.05/12, 10*12, -100.0, -100)*10000)/10000 == 15692.9289 )
   doAssert( pv(0.05/12, 10*12, -100.0, -100.0) ==  9488.851136853376)
   doAssert( pmt(0.05/12, 10*12, -100.0, -8000.0) == 52.57973401031784)
