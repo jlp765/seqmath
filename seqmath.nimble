@@ -7,3 +7,7 @@ license     = "MIT"
 srcDir      = "src"
 
 requires "nim >= 0.18.0"
+
+
+task test, "Run all tests":
+  exec "nim c -r tests/tall.nim"
