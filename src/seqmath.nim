@@ -204,7 +204,7 @@ when canImport(arraymancer):
       if x == `min`:
         return i[0]
 
-proc arange*(start, stop, step: int): seq[int] =
+proc arange*(start, stop, step = 1): seq[int] =
   ## returns seq containing all elements from incl. `start` to excl. `stop`
   ## given a stepping of `step`
   ## Similar to Numpy's arange
