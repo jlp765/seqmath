@@ -684,13 +684,20 @@ proc interp*[T:float](v: T, p: openArray[Point], left, right: T): float =
         result =  p[i].y + (v - p[i].x) * dy / dx
         break
 
-proc bincount*(x: openArray[int]): seq[int] =
+proc bincount*(x: openArray[int], sorted = false): seq[int] =
   ## Count of the number of occurrences of each value in
   ## sequence ``x`` of non-negative ints.
+  ## If `sorted` is true, we do not perform a sort of the input
+  ## sequence. Useful for input sequence is known to be sorted
+  ## already.
   ##
   ## The result is an sequence of length ``max(x)-min(x)+1``
   ## and covering every integer from ``min(x)`` to ``max(x)``
-  let ss = sort(x)
+  var ss: seq[int]
+  if not sorted:
+    ss = sort(x)
+  else:
+    ss = @x
   let sslow = max(0, ss[ss.low])
   result = newSeq[int](ss[ss.len-1] - sslow + 1)
   # relies on newSeq clearing values to zero!!
