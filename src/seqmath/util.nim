@@ -150,20 +150,15 @@ template getIndexSeq(ind: int, shape: openArray[int]): seq[int] =
 proc newSeqOf2D*[T](shape: openArray[int]): seq[seq[T]] =
   ## returns a nested (2D) sequence of the given dimensionality
   assert shape.len == 2
-  result = @[]
-  let vsize = shape[1]  
-  for i in 0 ..< shape[0]:
-    result.add(newSeq[T](vsize))
+  result = newSeqWith(shape[0], newSeq[T](shape[^1]))
 
 proc newSeqOf3D*[T](shape: openArray[int]): seq[seq[seq[T]]] =
   ## returns a nested (3D) sequence of the given dimensionality
   ## utilizes newSeqOf2D to build the 3D seq
   assert shape.len == 3
-  result = @[]
-  let vsize = shape[^1]
-  for i in 0 ..< shape[0]:
-    var t_s = newSeqOf2D[T](shape[1..^1])
-    result.add(t_s)
+  result = newSeqWith(shape[0],
+                      newSeqWith(shape[1],
+                                 newSeq[T](shape[^1])))
 
 proc reshape2D*[T](s: seq[T], shape: openArray[int]): seq[seq[T]] =
   ## returns a reshaped version of `s` to the given shape of `shape`
@@ -190,4 +185,4 @@ template reshape*[T](s: seq[T], shape: array[2, int]): seq[seq[T]] =
 template reshape*[T](s: seq[T], shape: array[3, int]): seq[seq[seq[T]]] =
   ## convenience template around reshape3D using 3 element array as input
   s.reshape3D(shape)  
-      
+
