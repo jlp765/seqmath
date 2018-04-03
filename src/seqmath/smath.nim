@@ -952,3 +952,28 @@ proc bezier*(p: openArray[Point], n: int): seq[Point] =
       result[nr] = p[p.high]
     else:
       result[nr] = bezierOnePoint(p, nr/(n-1))
+
+
+# ----------- other additions to math ---------------------------
+# scalar additional functions (some mainly used for tests) are also lifted below
+# if possible
+
+proc gauss*[T](x, mean, sigma: T , norm = false): float =
+  ## based on the ROOT implementation of TMath::Gaus:
+  ## https://root.cern.ch/root/html524/src/TMath.cxx.html#dKZ4iB
+  ## inputs are converted to float
+  if sigma == 0:
+    result = 1.0e30
+  let
+    arg = (x - mean).float / sigma.float
+    res = exp(-0.5 * arg * arg)
+  if norm == false:
+    result = res
+  else:
+    result = res / (2.50662827463100024 * sigma) # sqrt(2*Pi)=2.5066282746310002
+
+proc gauss*[T](x: openArray[T], mean, sigma: T, norm = false): seq[float] =
+  ## version of gauss working on openArrays
+  result = newSeq[float](x.len)
+  for i in 0..x.high:
+    result[i] = gauss(x[i], mean, sigma, norm)
