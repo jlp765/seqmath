@@ -809,7 +809,26 @@ proc histogram*[T](x: openArray[T],
 
     # currently weights and min length not implemented for bincount
     result = bincount(indices)
-     
+
+proc likelihood*[T, U](hist: openArray[T], val: U, bin_edges: seq[U]): float =
+  ## calculates the likelihood of the value `val` given the hypothesis `hist`
+  ## assuming the histogram is binned using `bin_edges`
+  assert hist.len == bin_edges.len
+  # get indices from bin edges using lower bound (in sorted seq simply looks for
+  # potential insertion order of element. Given bin_edges that's precisely the index)
+  let ind = bin_edges.lowerBound(val).int
+  result = hist[ind].float / hist.sum.float
+
+proc logLikelihood*[T, U](hist: openArray[T], val: U, bin_edges: seq[U]): float =
+  ## calculates the logLikelihood for the value `val` given hypothesis `hist` 
+  ## assuming a binning `bin_edges`. Uses above `likelihood` proc, takes the log
+  ## and checks for valid values.
+  ## Returns NegInf for cases in which likelihood returns 0 (bin content of bin is 0)
+  let lhood = likelihood(hist, val, bin_edges)
+  if lhood == 0:
+    result = NegInf
+  else:
+    result = ln(lhood)
   
 proc unwrap*[T](p: openArray[T], discont = PI): seq[float] =
   ## unwrap radian values of ``p`` by changing deltas between
