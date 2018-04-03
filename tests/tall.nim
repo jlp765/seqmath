@@ -34,8 +34,22 @@ when isMainModule:
   doAssert( shape([@[1,2,3], @[4,5,6]]) == @[2,3] )
   doAssert( shape(@[@[1,2,3], @[4,5,6]]) == @[2,3] )
   doAssert( shape(@[@[@[@[1,2,3], @[4,5,6]]]]) == @[1,1,2,3] )
-  
 
+  # assuming shape works, test newSeqOf2D and newSeqOf3D
+  doAssert( shape(newSeqOf2D[int]([9, 9])) == @[9, 9] )
+  doAssert( shape(newSeqOf2D[int]([3, 9])) == @[3, 9] )
+  doAssert( shape(newSeqOf3D[int]([2, 2, 5])) == @[2, 2, 5] )
+  doAssert( shape(newSeqOf3D[int]([10, 10, 10])) == @[10, 10, 10] )
+  doAssert( shape(newSeqOf3D[int]([3, 10, 5])) == @[3, 10, 5] )
+
+  doAssert( shape(reshape2D(newSeq[int](100), [10, 10])) == @[10, 10] )
+  doAssert( shape(reshape(newSeq[int](100), [10, 10])) == @[10, 10] )
+  doAssert( shape(reshape3D(newSeq[int](1000), [10, 10, 10])) == @[10, 10, 10] )
+  doAssert( shape(reshape(newSeq[int](1000), [10, 10, 10])) == @[10, 10, 10] )
+  doAssert( shape(reshape2D(newSeq[int](100), [5, 20])) == @[5, 20] )
+  doAssert( shape(reshape(newSeq[int](100), [5, 20])) == @[5, 20] )
+  doAssert( shape(reshape3D(newSeq[int](1000), [5, 20, 10])) == @[5, 20, 10] )
+  doAssert( shape(reshape(newSeq[int](1000), [5, 20, 10])) == @[5, 20, 10] )
   
   doAssert( histogram(arange(0, 100, 1), bins = 10).len == 10 )
   doAssert( histogram(arange(0, 100, 1), bins = 11).len == 11 )
