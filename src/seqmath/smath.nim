@@ -91,6 +91,7 @@ template liftScalarProc*(fname) =
 ## - cbrt
 ## - log10
 ## - log2
+## - ln
 ## - exp
 ## - arccos
 ## - arcsin
@@ -130,6 +131,7 @@ liftScalarProc(sqrt)
 liftScalarProc(cbrt)
 liftScalarProc(log10)
 liftScalarProc(log2)
+liftScalarProc(ln)
 liftScalarProc(exp)
 #liftScalarProc2(fexp)
 liftScalarProc(arccos)

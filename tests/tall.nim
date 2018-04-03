@@ -57,6 +57,8 @@ when isMainModule:
   let xar = @[0, 1, 1, 1, 3, 5, 1, 3, 6, 8]
   doAssert( histogram(xar, bins = 6, range = (0.0, 5.0)) == @[1, 4, 0, 2, 0, 1] )
 
+  # TODO: add tests for likelihood, logLikelihood and gauss  
+
   doAssert( cumProd([1,2,3,4]) == @[1,2,6,24])
   doAssert( cumSum([1,2,3,4]) == @[1,3,6,10])
   doAssert( cumCount([1,3,3,2,3],3) == @[0,1,2,2,3])
