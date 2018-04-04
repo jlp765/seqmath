@@ -1,26 +1,8 @@
 import math, algorithm, sequtils, strutils, typetraits
 
-## Extensions of the math module to work with sequences
-## and arrays, and with nested sequences
-##
-## The returned results are sequences, not arrays,
-## but the procs accept arrays as parameters
-##
-## Not all functions work with nested sequences
-##
-##  *Note:* ``financial`` formulas are discrete
-##  and not the result of solving non-linear equations.
-##  The results produced will differ from the
-##  results produced by a library like numpy.
+{.deadCodeElim: on.}
 
 type
-  FinObj* = object ## optional object for interfacing with financial calculations
-    pv*: float ## ``present value`` (negative for outgoing cash flow)
-    fv*: float ## ``future value`` (negative for outgoing cash flow)
-    rate*: float ## annual ``interest rate`` as 0.05 for 5% (monthly as 0.05/12)
-    nper*: float ## ``number of periods`` 10*12 for 10 years monthly
-    pmt*: float ## ``payment`` amount (negative for outgoing cash flow)
-
   Point* = object  ## a point in 2-dimensional space, with ``x`` and ``y`` coordinates
                    ## used with the ``bezier()`` proc
     x*: float
@@ -28,6 +10,9 @@ type
 
   PtileInterp = enum
     linear, lower, higher, nearest, midpoint
+
+  # error to be raised when a feature is used, which is not (fully) implemented yet
+  NotImplementedError = object of Exception
 
 template toFloat(f: float): float = f
 
@@ -76,7 +61,7 @@ template liftScalarProc*(fname) =
   ## .. code-block:: Nim
   ##  liftScalarProc(abs)
   ##  # now abs(@[@[1,-2], @[-2,-3]]) == @[@[1,2], @[2,3]]
-  proc fname[T](x: openarray[T]): auto =
+  proc fname*[T](x: openarray[T]): auto =
     var temp: T
     type outType = type(fname(temp))
     result = newSeq[outType](x.len)
@@ -106,6 +91,7 @@ template liftScalarProc*(fname) =
 ## - cbrt
 ## - log10
 ## - log2
+## - ln
 ## - exp
 ## - arccos
 ## - arcsin
@@ -145,6 +131,7 @@ liftScalarProc(sqrt)
 liftScalarProc(cbrt)
 liftScalarProc(log10)
 liftScalarProc(log2)
+liftScalarProc(ln)
 liftScalarProc(exp)
 #liftScalarProc2(fexp)
 liftScalarProc(arccos)
@@ -164,13 +151,35 @@ liftScalarProc(erfc)
 liftScalarProc(lgamma)
 liftScalarProc(tgamma)
 liftScalarProc(trunc)
-liftScalarProc(round)
 liftScalarProc(floor)
 liftScalarProc(ceil)
 liftScalarProc(degToRad)
 liftScalarProc(radToDeg)
 liftScalarProc(gcd)
 liftScalarProc(lcm)
+
+
+# round cannot be lifted using the template above, since it has an
+# optional parameter `round`
+proc round*[T](x: openArray[T], places = 0): seq[T] =
+  result = newSeq[T](x.len)
+  for i in 0..<x.len:
+    result[i] = round(x[i], places)
+
+
+template liftCompareProc(op) =
+  ## lift an comparator operator like `<` to work element wise
+  ## on two openArrays `x`, `y` and return a `seq[bool]`
+  proc `op`*[T](x, y: openArray[T]): seq[bool] =
+    result = newSeq[bool](x.len)
+    for i, xy in zip(x, y):
+      result[i] = op(xy[0], xy[1])
+
+# lift comparator operators
+liftCompareProc(`<`)
+liftCompareProc(`>`)
+liftCompareProc(`<=`)
+liftCompareProc(`>=`)
 
 # ----------- cumulative seq math -----------------------
 
@@ -226,16 +235,6 @@ proc product*[T](x: openArray[T]): T =
   for i in 0..<x.len: cp *= x[i]
   result = cp
 
-proc sum*[T](x: openArray[T]): T =
-  ## sum each element of ``x``
-  ## returning a single value
-  ##
-  ## ``sum(@[1,2,3,4])`` produces ``10`` (= 1 + 2 + 3 + 4)
-  var cp = T(0)
-  for i in 0..<x.len:
-    cp = cp + x[i]
-  result = cp
-
 proc sumSquares*[T](x: openArray[T]): T =
   ## sum of ``x[i] * x[i]`` for each element
   ## returning a single value
@@ -257,14 +256,6 @@ proc powSum*[T](x: openArray[T], p: T): float =
   for i in 0..<x.len: ps += pow(x[i].toFloat, p.toFloat)
   result = ps
 
-proc max*[T](x: openArray[T]): T =
-  ## Maximum element in ``x``
-  if x.len == 0: result = T(0)
-  else:
-    result = x[0]
-    for i in 0..<x.len:
-      if x[i] > result: result = x[i]
-
 proc max*[T](x: openArray[T], m: T): seq[T] =
   ## Maximum of each element of ``x`` compared to the value ``m``
   ## as a sequence
@@ -276,7 +267,11 @@ proc max*[T](x: openArray[T], m: T): seq[T] =
     for i in 0..<x.len:
       result[i] = max(m, x[i])
 
-proc max*[T](x, y: openArray[T]): seq[T] =
+proc max*[T](x, y: seq[T]): seq[T] =
+  ## Note: previous definition using an openArray as the type
+  ## does not work anymore, since it clashes with with
+  ## system.max[T](x, y: T) now
+  
   ## Maximum value of each element of ``x`` and
   ## ``y`` respectively, as a sequence.
   ##
@@ -290,15 +285,7 @@ proc max*[T](x, y: openArray[T]): seq[T] =
       if i < nlen: result[i] = max(x[i], y[i])
       elif i < x.len: result[i] = x[i]
       else: result[i] = y[i]
-
-proc min*[T](x: openArray[T]): T =
-  ## Minimum element in ``x``
-  if x.len == 0: result = T(0)
-  else:
-    result = x[0]
-    for i in 0..<x.len:
-      if x[i] < result: result = x[i]
-
+      
 proc min*[T](x: openArray[T], m: T): seq[T] =
   ## Minimum of each element of ``x`` compared to the value ``m``
   ## as a sequence
@@ -310,7 +297,11 @@ proc min*[T](x: openArray[T], m: T): seq[T] =
     for i in 0..<x.len:
       result[i] = min(m, x[i])
 
-proc min*[T](x, y: openArray[T]): seq[T] =
+proc min*[T](x, y: seq[T]): seq[T] =
+  ## Note: previous definition using an openArray as the type
+  ## does not work anymore, since it clashes with with
+  ## system.min[T](x, y: T) now
+  
   ## Minimum value of each element of ``x`` and
   ## ``y`` respectively, as a sequence.
   ##
@@ -333,7 +324,7 @@ proc eAdd*[T](x, y: openArray[T]): seq[T] =
   ## returning a sequence
   ##
   ## ``eAdd(@[1,2], @[3,4])`` produces ``@[4,6]``
-  assert (x.len <= y.len, "eAdd() parameter lengths must match")
+  assert(x.len <= y.len, "eAdd() parameter lengths must match")
   result = newSeq[T](x.len)
   for i in 0..<x.len:
     result[i] = x[i] + y[i]
@@ -351,7 +342,7 @@ proc eSub*[T](x, y: openarray[T]): seq[T] =
   ## where x.len <= y.len
   ##
   ## ``eSub(@[1,2], @[3,4])`` produces ``@[-2,-2]``
-  assert (x.len <= y.len, "eSubtract() parameter lengths must match")
+  assert(x.len <= y.len, "eSubtract() parameter lengths must match")
   result = newSeq[T](x.len)
   for i in 0..<x.len:
     result[i] = x[i] - y[i]
@@ -369,7 +360,7 @@ proc eMul*[T](x, y: openArray[T]): seq[T] =
   ## where x.len <= y.len
   ##
   ## ``eMul(@[1,2], @[3,4])`` produces ``@[3,8]``
-  assert (x.len <= y.len, "eMultiply() parameter lengths must match")
+  assert(x.len <= y.len, "eMultiply() parameter lengths must match")
   result = newSeq[T](x.len)
   for i in 0..<x.len:
     result[i] = x[i] * y[i]
@@ -389,7 +380,7 @@ proc eDiv*[T](x, y: openArray[T]): seq[float] =
   ## and x.len <= y.len
   ##
   ## ``eDiv(@[1,2], @[2,0])`` produces ``@[0.5,0.0]``
-  assert (x.len <= y.len, "eDivide() parameter lengths must match")
+  assert(x.len <= y.len, "eDivide() parameter lengths must match")
   result = newSeq[float](x.len)
   for i in 0..<x.len:
     if y[i] == T(0): result[i] = 0.0
@@ -414,7 +405,7 @@ proc eMod*[T](x, y: openArray[T]): seq[float] =
   ## and x.len <= y.len
   ##
   ## ``eMod(@[1.0,2.0], @[2.0,1.5])`` produces ``@[1.0, 0.5]``
-  assert (x.len <= y.len, "eRemainder() parameter lengths must match")
+  assert(x.len <= y.len, "eRemainder() parameter lengths must match")
   result = newSeq[float](x.len)
   for i in 0..<x.len:
     if y[i] == 0: result[i] = 0.0
@@ -695,13 +686,20 @@ proc interp*[T:float](v: T, p: openArray[Point], left, right: T): float =
         result =  p[i].y + (v - p[i].x) * dy / dx
         break
 
-proc bincount*(x: openArray[int]): seq[int] =
+proc bincount*(x: openArray[int], sorted = false): seq[int] =
   ## Count of the number of occurrences of each value in
   ## sequence ``x`` of non-negative ints.
+  ## If `sorted` is true, we do not perform a sort of the input
+  ## sequence. Useful for input sequence is known to be sorted
+  ## already.
   ##
   ## The result is an sequence of length ``max(x)-min(x)+1``
   ## and covering every integer from ``min(x)`` to ``max(x)``
-  let ss = sort(x)
+  var ss: seq[int]
+  if not sorted:
+    ss = sort(x)
+  else:
+    ss = @x
   let sslow = max(0, ss[ss.low])
   result = newSeq[int](ss[ss.len-1] - sslow + 1)
   # relies on newSeq clearing values to zero!!
@@ -743,6 +741,97 @@ proc digitize*[T](x: openArray[T], bins: openArray[T], right = false): seq[int] 
           result[i] = k
           break
 
+proc histogram*[T](x: openArray[T],
+                   bins: (int | string),
+                   range: tuple[mn, mx: float] = (0.0, 0.0),
+                   normed = false,
+                   weights: seq[T] = nil,
+                   density = false): seq[int] =
+  ## Compute the histogram of a set of data. Adapted from Numpy's code.
+  result = @[]
+  if x.len == 0:
+    raise newException(ValueError, "Cannot compute histogram of empty array!")
+
+  if weights.len > 0 and weights.len != x.len:
+    raise newException(ValueError, "The number of weights needs to be equal to the number of elements in the input seq!")
+
+  # parse the range parameter
+  var (mn, mx) = range
+  if mn == 0.0 and mx == 0.0:
+    mn = x.min.float
+    mx = x.max.float
+  if mn > mx:
+    raise newException(ValueError, "Max range must be larger than min range!")
+  elif mn == mx:
+    mn -= 0.5
+    mx += 0.5
+  # from here on mn, mx unchanged
+  when type(bins) is string:
+    # to be implemented to guess the number of bins from different algorithms. Looking at the Numpy code
+    # for the implementations it's only a few LoC
+    raise newException(NotImplementedError, "Automatic choice of number of bins based on different " &
+                       "algorithms not implemented yet.")
+  when type(bins) is int:
+    # init empty float histogram
+    var n = newSeq[float](bins)
+    # normalization
+    let
+      norm = bins.float / (mx - mn)
+      bin_edges = linspace(mn, mx, bins + 1, endpoint = true)
+    # make sure input array is float and filter to all elements inside valid range
+    # x_keep is used to calculate the indices whereas x_data is used for hist calc
+    when T isnot float:
+      var x_data = mapIt(@x, it.float)
+    else:
+      var x_data = x
+    var x_keep = filterIt(x_data, it >= mn and it <= mx)
+    x_data = x_keep
+    # remove potential offset
+    applyIt(x_keep, it - mn)
+    #x_keep -= mn
+    applyIt(x_Keep, it * norm)
+    # x_keep *= norm
+
+    # compute bin indices
+    var indices = mapIt(x_keep, it.int)
+    # for indices which are equal to the max value, subtract 1
+    indices.apply do (it: int) -> int:
+      if it == bins:
+        it - 1
+      else:
+        it
+    # since index computation not guaranteed to give exactly consistent results within
+    # ~1 ULP of the bin edges, decrement some indices
+    let decrement = x_data < bin_edges[indices]
+    for i in 0 .. indices.high:
+      if decrement[i] == true:
+        indices[i] -= 1
+      if x_data[i] >= bin_edges[indices[i] + 1] and indices[i] != (bins - 1):
+        indices[i] += 1
+
+    # currently weights and min length not implemented for bincount
+    result = bincount(indices)
+
+proc likelihood*[T, U](hist: openArray[T], val: U, bin_edges: seq[U]): float =
+  ## calculates the likelihood of the value `val` given the hypothesis `hist`
+  ## assuming the histogram is binned using `bin_edges`
+  assert hist.len == bin_edges.len
+  # get indices from bin edges using lower bound (in sorted seq simply looks for
+  # potential insertion order of element. Given bin_edges that's precisely the index)
+  let ind = bin_edges.lowerBound(val).int
+  result = hist[ind].float / hist.sum.float
+
+proc logLikelihood*[T, U](hist: openArray[T], val: U, bin_edges: seq[U]): float =
+  ## calculates the logLikelihood for the value `val` given hypothesis `hist` 
+  ## assuming a binning `bin_edges`. Uses above `likelihood` proc, takes the log
+  ## and checks for valid values.
+  ## Returns NegInf for cases in which likelihood returns 0 (bin content of bin is 0)
+  let lhood = likelihood(hist, val, bin_edges)
+  if lhood == 0:
+    result = NegInf
+  else:
+    result = ln(lhood)
+  
 proc unwrap*[T](p: openArray[T], discont = PI): seq[float] =
   ## unwrap radian values of ``p`` by changing deltas between
   ## consecutive elements to its ``2*pi`` complement
@@ -771,49 +860,6 @@ proc unwrap*[T](p: openArray[T], discont = PI): seq[float] =
     else:
       # if a discontinuity, then add diff to that value
       result[i] = result[i-1] + d
-
-proc transpose*[T](x: openArray[seq[T]]): seq[seq[T]] =
-  ## transpose a seq[seq[]]
-  ##
-  ## A 2 x 3-element becomes a 3 x 2-element seq[seq[]]
-  ## ``transpose(@[ @[1,2,3], @[4,5,6]])`` produces ``@[ @[1,4], @[2,5], @[3,6]]``
-  let alen = x.len
-  let blen = len(x[0])
-  result = newSeqWith(blen, newSeq[T](alen))
-  for i in 0..<blen:
-    for j in 0..<alen:
-      result[i][j] = x[j][i]
-
-proc shape[T:SomeNumber](x: T): seq[int] = @[]
-  # Exists so that recursive template stops with this proc.
-
-proc shape*[T](x: openarray[T]): seq[int] =
-  ## return the shape of a (nested) [seq[....]]
-  ## as a sequence of numbers
-  ##
-  ## ``shape([@[1,2,3], @[4,5,6]]`` produces ``@[2,3]``
-  var shp = type(T).name
-  let sT = shp.replace("]","").split("seq[")
-  result = newSeq[int](sT.len)
-  result[0] = x.len
-  var k = 1
-  for sNr in items(shape(x[0])):
-    result[k] = sNr
-    inc(k)
-
-proc shape*[T](x: seq[T]): seq[int] =
-  ## return the shape of a (nested) seq[....]
-  ## as a sequence of numbers
-  ##
-  ## ``shape(@[[1,2,3], @[4,5,6]]`` produces ``@[2,3]``
-  var shp = type(T).name
-  let sT = shp.replace("]","").split("seq[")
-  result = newSeq[int](sT.len)
-  result[0] = x.len
-  var k = 1
-  for sNr in items(shape(x[0])):
-    result[k] = sNr
-    inc(k)
 
 proc ptp[T: SomeNumber](x: T): T = (result = T(0))
   # this is required for liftScalarProc(ptp)
@@ -848,7 +894,7 @@ proc pointOnLinePC(p0, p1: Point, dPC: float): Point =
     result.x = p0.x + (p1.x - p0.x) * dPC
     result.y = interpRaw(result.x, p0, p1)
 
-proc pointOnLine(p0, p1: Point, v: float): Point =
+proc pointOnLine*(p0, p1: Point, v: float): Point =
   ## get the ``Point`` (`x=v`` and ``y`` values) corresponding
   ## to ``v`, a value along the ``x`` axis between the two points
   ## ``p0`` and ``p1`.
@@ -909,216 +955,27 @@ proc bezier*(p: openArray[Point], n: int): seq[Point] =
     else:
       result[nr] = bezierOnePoint(p, nr/(n-1))
 
-# ---------------- financial --------------------
 
-proc fv*(rate: float, nper: float, pmt: float, pv: float = 0.0): float =
-  ## ``future value`` at a ``rate`` for ``nper`` periods at ``pmt`` payments
-  ## per period with an option initial present value ``pv``
-  ##
-  ## ``pmt`` and ``pv`` are outgoing cash flows (negative values)
-  ##
-  ## .. code-block:: Nim
-  ##  # 5% for 10 years of monthly payments of $100 payments
-  ##  # with initial $100 value
-  ##  echo fv(0.05/12, 10*12, -100, -100)
-  ##  # result of 15692.92889433589
-  ##
-  ## ``fv = (pv + pmt/rate-pmt/(rate*pow(1+rate,nper))) * pow(1+rate,nper)``
-  let rVal = pow(1.0 + rate, nper)
-  let pmtVal = pmt / rate - (pmt / (rate * rVal))
-  result = - (pv + pmtVal) *  rVal
-  #if pv == 0.0:
-  # result = - pmt * (pow((1.0 + rate), nper) - 1.0) / rate
-  #else:
-  #  # fv of pv is pv*(1+r)^^n)
-  #  result = (- pv * pow((1.0 + rate), nper)) - pmt * (pow((1.0 + rate), nper) - 1.0) / rate
+# ----------- other additions to math ---------------------------
+# scalar additional functions (some mainly used for tests) are also lifted below
+# if possible
 
-proc fv*(rate: float, nper: int, pmt: float, pv: float = 0.0): float {.inline.} =
-  ## ``future value`` with ``nper`` periods as an ``int`` type
-  fv(rate, nper.toFloat, pmt, pv)
-
-proc fv*(f: var FinObj) {.inline.} =
-  ## ``future value`` calculated using ``FinObj`` as the parameter.
-  ##
-  ## Supply ``f.pmt``, ``f.pv``, ``f.nper`` and ``f.rate``, and
-  ## the result will be returned in ``f.fv``
-  f.fv = fv(f.rate, f.nper, f.pmt, f.pv)
-
-proc nper*(rate: float, pmt: float, pv: float): float =
-  ## ``number of periods`` for regular payments ``pmt``
-  ## at annual interest ``rate`` to reach a present value ``pv``
-  if pv == 0.0: result = 0.0
+proc gauss*[T](x, mean, sigma: T , norm = false): float =
+  ## based on the ROOT implementation of TMath::Gaus:
+  ## https://root.cern.ch/root/html524/src/TMath.cxx.html#dKZ4iB
+  ## inputs are converted to float
+  if sigma == 0:
+    result = 1.0e30
+  let
+    arg = (x - mean).float / sigma.float
+    res = exp(-0.5 * arg * arg)
+  if norm == false:
+    result = res
   else:
-    result = log10((1.0 + (pv * rate) / - pmt))
+    result = res / (2.50662827463100024 * sigma) # sqrt(2*Pi)=2.5066282746310002
 
-proc nper*(f: var FinObj) {.inline.} =
-  ## ``number of periods`` calculated using ``FinObj`` as the parameter.
-  ##
-  ## Supply ``f.pmt``, ``f.pv``, ``f.rate``, and
-  ## the result will be returned in ``f.nper``
-  f.nper = nper(f.rate, f.pmt, f.pv)
-
-proc pv*(rate: float, nper: float, pmt: float, fv: float = 0.0): float =
-  ## ``present value`` at a ``rate`` for ``nper`` periods at ``pmt`` payments
-  ## per period with an option initial future value ``fv``
-  ##
-  ## ``pv = fv/pow(1+rate,nper) - pmt/rate + pmt/(rate*pow(1+rate,nper))``
-  let rVal = pow(1.0 + rate, nper)
-  result = - (fv / rVal - (- pmt) / rate + (- pmt) / (rate * rVal))
-
-proc pv*(rate: float, nper: int, pmt: float, fv: float = 0.0): float {.inline.} =
-  ## ``present value`` for a period of ``int`` type.
-  pv(rate, nper.toFloat, pmt, fv)
-
-proc pv*(f: var FinObj) {.inline.} =
-  ## ``present value`` calculated using ``FinObj`` as the parameter.
-  ##
-  ## Supply ``f.pmt``, ``f.fv``, ``f.rate``, ``f.nper``, and
-  ## the result will be returned in ``f.pv``
-  f.pv = pv(f.rate, f.nper, f.pmt, f.fv)
-
-proc pmt*(rate: float, nper: float, pv: float, fv: float = 0.0): float =
-  ## ``payment`` required per ``nper`` periods at an interest ``rate``
-  ## for a present value ``pv`` to become a future value ``fv``
-  ##
-  ## ``pmt = abs(pv - fv/pow(1+rate,nper))*(rate*pow(1+rate,nper)
-  ## /(1-pow(1+rate,nper)))``
-  let rVal = pow(1.0 + rate, nper)
-  result = - abs(- pv - fv/rVal) * rate * rVal/(1.0 - rVal)
-
-proc pmt*(f: var FinObj) =
-  ## ``payment`` calculated using ``FinObj`` as the parameter.
-  ##
-  ## Supply ``f.pv``, ``f.fv``, ``f.rate``, ``f.nper``, and
-  ## the result will be returned in ``f.pmt``
-  let rVal = pow(1.0 + f.rate, f.nper)
-  f.pmt = - abs(- f.pv - f.fv/rVal) * f.rate * rVal/(1.0 - rVal)
-
-proc npv*(cashflows: openArray[float], pv: var openArray[float], rate: float): float =
-  ## ``net present value`` of ``cashflows`` at discount ``rate`` (0.05 for 5%)
-  ##
-  ## .. code-block:: Nim
-  ##  # Project initial cost of $1000.00 returns $100.00 benefits for 3 years
-  ##  # at an effective annual discount rate of 10%
-  ##  var myPv = newSeq[float](4)
-  ##  echo "Net present Value: ", npv(@[-1000.0, 350.0, 350.0, 350.0], myPv, 0.10),
-  ##  echo "with present values: ", myPv
-  ##  # returns  -129.6018031555224
-  ##  #          @[-1000.0, 318.1818181818181, 289.2561983471074,
-  ##  #          262.9601803155521]
-  ##  # so a net loss of $129.60 (not a good project!!)
-  var netPV = cashflows[0]
-  pv[0] = cashflows[0]
-  for i in 1..<cashflows.len:
-    pv[i] = - pv(rate, i, 0.0, cashflows[i])
-    netPV += pv[i]
-  result = netPV
-
-# ---------------------------------------------
-when isMainModule:
-  doAssert(Point(x:2.0, y:2.0) != Point(x:2.0001, y:2.0) )
-  doAssert(Point(x:2.0, y:2.0) == Point(x:2.0, y:2.0) )
-  doAssert(Point(x:2.0, y:2.0) > Point(x:1.99999, y:2.0) )
-  doAssert(Point(x:1.99998, y:2.0) < Point(x:1.99999, y:2.0) )
-  doAssert(Point(x:1.99999, y:2.0) <= Point(x:1.99999, y:2.0) )
-  doAssert(Point(x:1.99999, y:2.0) >= Point(x:1.99999, y:2.0) )
-  doAssert(swap(Point(x:1.99999, y:2.0)) == Point(x:2.0, y:1.99999) )
-  doAssert(swap(Point(x:1.99999, y:2.0)) == Point(x:2.0, y:1.99999) )
-  var p = Point(x:1.99999, y:2.0)
-  swap(p)
-  doAssert( p == Point(x:2.0, y:1.99999) )
-
-  doAssert( min(@[-1,-2,3,4]) == -2 )
-  doAssert( max(@[-1,-2,3,4]) == 4 )
-  doAssert( max(@[-1,-2,3,4], 0) == @[0,0,3,4] )
-  doAssert( max(@[-1,-2,3,4], @[4,3,2,1]) == @[4,3,3,4] )
-  doAssert( min(@[-1,-2,3,4], @[4,3,2,1]) == @[-1,-2,2,1] )
-
-  doAssert( cumProd([1,2,3,4]) == @[1,2,6,24])
-  doAssert( cumSum([1,2,3,4]) == @[1,3,6,10])
-  doAssert( cumCount([1,3,3,2,3],3) == @[0,1,2,2,3])
-  doAssert( cumPowSum(@[1,2,3,4], 2) == @[1.0, 5.0, 14.0, 30.0])
-
-  doAssert( sum([1,2,3,4]) == 10 )
-  doAssert( product([1,2,3,4]) == 24 )
-  doAssert( sumSquares(@[1,2,3,4]) == 30 )
-  doAssert( powSum(@[1,2], 3) == 9 )
-
-  doAssert( eAdd(@[1,2,-1], @[3,4,-2]) == @[4,6,-3] )
-  doAssert( eAdd(@[1,2], 4) == @[5,6] )
-  doAssert( eSub(@[1,2,-1], @[3,1,-2]) == @[-2,1,1] )
-  doAssert( eSub(@[1,20], 4) == @[-3,16] )
-  doAssert( eSub( @[1.0, 2.0, -1.0], @[3.0, 1.0, -2.1231]) == @[-2.0,1.0,1.1231] )
-  doAssert( eSub(@[1.0,20.321], 4.0) == @[-3.0,16.321] )
-  doAssert( eMul(@[1,2,-1], @[3,1,-2]) == @[3,2,2] )
-  doAssert( eMul(@[-1,20], 4) == @[-4,80] )
-  doAssert( eMul( @[1.0, 2.0, -1.0], @[3.0, 1.0, -2.1231]) == @[3.0,2.0,2.1231] )
-  doAssert( eMul(@[-1.111,20.0], 4.0) == @[-4.444,80.0] )
-  doAssert( eDiv(@[1,2,-1], @[1,0,-2]) == @[1.0,0.0,0.5] )
-  doAssert( eDiv(@[-1,20], 4) == @[-0.25,5.0] )
-  doAssert( eDiv( @[1.0, 2.0, -1.1231], @[1.0, 0.0, -1.0]) == @[1.0,0.0,1.1231] )
-  doAssert( eDiv(@[-4.444,20.0], 4.0) == @[-1.111,5.0] )
-  doAssert( eMod(@[2,4,-5], @[3,0,-4]) == @[2.0,0.0,-1.0] )
-  doAssert( eMod(@[-5,20], 4) == @[-1.0,0.0] )
-  doAssert( eMod( @[2.0, 4.0, -5.1231], @[3.0, 0.0, -4.0]) == @[2.0,0.0,-1.1231] )
-  doAssert( eMod(@[-5.0,20.0], 4.0) == @[-1.0,0.0] )
-  doAssert( eDiff([1,2,4,7,0]) == @[1,2,3,-7] )
-  var w: seq[int] = @[]
-  doAssert( eDiff(w) == @[] )
-  doAssert( diff([1,2,4,7,0],0) == @[1,2,3,-7] )
-  doAssert( diff([1,2,4,7,0],1) == @[1,2,3,-7] )
-  doAssert( diff([1,2,4,7,0],2) == @[1,1,-10] )
-  doAssert( diff([1,2,4,7,0],3) == @[0,-11] )
-  doAssert( diff([1,2,4,7,0],4) == @[-11] )
-  doAssert( diff([1,2,4,7,0],7) == @[] )
-
-  doAssert( percentile(@[10,7,4,3,2,1],0) == 1.0 )
-  doAssert( percentile(@[10,7,4,3,2,1],100) == 10.0 )
-  doAssert( percentile(@[10,7,4,3,2,1,0],50) == 3.0 )
-  doAssert( percentile(@[10,7,4,3,2,1],50) == 3.5 )
-  doAssert(bincount(@[1,-1,0,1,3,2,0,2,3,2,1,5,-2,-3]) == @[2,3,3,2,0,1])
-  doAssert(digitize(@[1.2, 10.0, 12.4, 15.5, 20.0], @[0.0,5.0,10.0,15.0,20.0], true) == @[1,2,3,4,4])
-  doAssert(digitize(@[1.2, 10.0, 12.4, 15.5, 20.0], @[0.0,5.0,10.0,15.0,20.0]) == @[1,3,3,4,5])
-  doAssert(digitize(@[1.2, 10.0, 12.4, 15.5, 20.0], @[20.0,15.0,10.0,5.0,0.0], true) == @[4,3,2,1,1])
-  doAssert(digitize(@[1.2, 10.0, 12.4, 15.5, 20.0], @[20.0,15.0,10.0,5.0,0.0]) == @[4,2,2,1,0])
-  doAssert(eDiv(@[4,2],@[2,1]) == @[2.0,2.0])
-  doAssert(eDiv(@[4.0,2.0],@[2.0,1.0]) == @[2.0,2.0])
-  doAssert(eRem(@[1.0,2.0],@[2.0,1.5]) == @[1.0,0.5])
-  doAssert(eRem(@[1.0,2.0], 1.5) == @[1.0,0.5])
-  let x = eMul(@[0.0, 0.1, 0.2, 0.3, 1.5, 1.7, 1.8, 1.9, 2.0, 2.4, 2.5, 2.6], PI)
-  doAssert(x.unwrap().eDiv(PI) == @[0.0, 0.1, 0.2, 0.3, -0.5, -0.3, -0.2, -0.1, 0.0, 0.4, 0.5, 0.6])
-  doAssert(transpose(@[ @[1,2,3], @[4,5,6]]) == @[ @[1,4], @[2,5], @[3,6]])
-  doAssert( @[@[1,2],@[3,4],@[5,6]].shape() == @[3,2])
-  doAssert( @[@[1,3,4,5,6,7,8],@[1,1,1,1,1,5,6]].shape() == @[2,7])
-  doAssert( transpose(@[@[1,3,4,5,6,7,8],@[1,1,1,1,1,5,6]]).shape() == @[7,2])
-
-  doAssert( shape([@[1,2,3], @[4,5,6]]) == @[2,3] )
-  doAssert( shape(@[@[1,2,3], @[4,5,6]]) == @[2,3] )
-  doAssert( shape(@[@[@[@[1,2,3], @[4,5,6]]]]) == @[1,1,2,3] )
-
-  doAssert( round(fv(0.05/12, 10*12, -100.0, -100)*10000)/10000 == 15692.9289 )
-  doAssert( pv(0.05/12, 10*12, -100.0, -100.0) ==  9488.851136853429 )
-  doAssert( pmt(0.05/12, 10*12, -100.0, -8000.0) == 52.57973401031737 )
-  doAssert( round(pmt(0.05/12, 10*12, 0.0, -8000.0)*10000)/10000 == 51.5191 )
-  let cf = @[-100_000.0, 10_000.0, 10_000.0, 10_000.0, 10_000.0, 10_000.0, 10_000.0, 10_000.0, 10_000.0, 10_000.0, 10_000.0, 10_000.0, 10_000.0]
-  var myPv = newSeq[float](13)
-  doAssert( round(npv(cf, myPv, 0.10)*10000)/10000 == -31863.0818 )
-
-  doAssert( ptp(@[1,3,2,6]) == 5 )
-  doAssert( ptp(@[@[1,3],@[2,6]]) == @[2,4] )
-  doAssert( ptp(@[@[@[1,3],@[2,6]], @[@[100,10],@[-5,-11]]]) == @[@[2,4], @[90,6]] )
-
-  doAssert( pointOnLine(Point(x:2.0, y:2.0), Point(x:5.0, y:2.0), 3.0) == Point(x:3.0, y:2.0) )
-  doAssert( interp(2.5, @[1,2,3], @[3,2,0]) == 1.0)
-  doAssert( interpRaw(2.5, Point(x:2.0, y:2.0), Point(x:3.0, y:0.0)) == 1.0)
-  doAssert( interpRaw(2.0, Point(x:2.0, y:2.0), Point(x:2.0, y:5.0)) == 2.0)  # p0.y = 2.0
-  doAssert( bezier([Point(x:2.0, y:2.0), Point(x:5.0, y:2.0)], 4) ==
-    @[Point(x: 2.0, y: 2.0), Point(x: 3.0, y: 2.0), Point(x: 4.0, y: 2.0), Point(x: 5.0, y: 2.0)] )
-  doAssert( bezier([Point(x:2.0, y:2.0), Point(x:2.0, y:5.0)], 4) ==
-    @[Point(x: 2.0, y: 2.0), Point(x: 2.0, y: 3.0), Point(x: 2.0, y: 4.0), Point(x: 2.0, y: 5.0)] )
-
-  doAssert( cos(sin(@[@[0.0],@[PI],@[2*PI]])) == @[@[1.0],@[1.0],@[1.0]] )
-  doAssert(abs(@[@[1,-2,-2,-3]]) == @[@[1,2,2,3]])
-  doAssert( toInt(toFloat(@[@[1,-2,-2,-3]])) == @[@[1,-2,-2,-3]] )
-  doAssert( nextPowerOfTwo(@[@[1,15,25,99]]) == @[@[1,16,32,128]] )
-  doAssert( round(@[@[1.1,2.213,25.52,99.9999999999]]) == @[@[1,2,26,100]] )
+proc gauss*[T](x: openArray[T], mean, sigma: T, norm = false): seq[float] =
+  ## version of gauss working on openArrays
+  result = newSeq[float](x.len)
+  for i in 0..x.high:
+    result[i] = gauss(x[i], mean, sigma, norm)
