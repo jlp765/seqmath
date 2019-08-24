@@ -15,7 +15,7 @@ procs from the Nim math library to work with sequences and nested
 sequences.  Currently it cannot lift procs like arctan2 that take two
 parameters.
 
-Use the `liftScalarProc()` template to lift your own scalar procs to
+Use the *liftScalarProc()* template to lift your own scalar procs to
 work with sequences and nested sequences.
 
 ** To be added
