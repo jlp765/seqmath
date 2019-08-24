@@ -29,7 +29,7 @@ proc fv*(rate: float, nper: float, pmt: float, pv: float = 0.0): float =
   ## ``fv = (pv + pmt/rate-pmt/(rate*pow(1+rate,nper))) * pow(1+rate,nper)``
   let rVal = pow(1.0 + rate, nper)
   let pmtVal = pmt / rate - (pmt / (rate * rVal))
-  result = - (pv + pmtVal) *  rVal
+  result = - (pv + pmtVal) * rVal
   #if pv == 0.0:
   # result = - pmt * (pow((1.0 + rate), nper) - 1.0) / rate
   #else:
